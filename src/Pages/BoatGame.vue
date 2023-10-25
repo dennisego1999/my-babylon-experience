@@ -1,10 +1,10 @@
 <script setup>
-import {Game} from "@/Classes/Game.js";
+import {BoatGame} from "@/Classes/BoatGame.js";
 import {nextTick} from "vue";
 
 nextTick(() => {
   //Create game instance
-  new Game('game-canvas');
+  new BoatGame('game-canvas');
 });
 </script>
 
