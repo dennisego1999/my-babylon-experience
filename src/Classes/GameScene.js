@@ -41,4 +41,9 @@ export class GameScene {
             this.scene.render();
         });
     }
+
+    resize() {
+        console.log('resizing');
+        this.engine.resize();
+    }
 }

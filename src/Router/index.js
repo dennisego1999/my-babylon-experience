@@ -1,11 +1,11 @@
 import {createRouter, createWebHistory} from 'vue-router';
-import BoatGame from "@/Pages/BoatGame.vue";
+import SpaceGame from "@/Pages/SpaceGame.vue";
 
 const routes = [
     {
         path: '/',
-        name: 'boat_game',
-        component: BoatGame,
+        name: 'space_game',
+        component: SpaceGame,
     },
     {
         path: '/:catchAll(.*)',
