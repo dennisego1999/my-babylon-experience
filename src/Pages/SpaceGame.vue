@@ -7,6 +7,7 @@ import CustomButton from "@/Components/CustomButton.vue";
 //Define variables
 let game;
 const isModalOpen = ref(false);
+const isMarkerOpen = ref(false);
 
 //Define functions
 function openModal() {
@@ -17,12 +18,26 @@ function closeModal() {
   isModalOpen.value = false;
 }
 
+function openMarkerInfo() {
+  //Set reactive
+  isMarkerOpen.value = true;
+}
+
+function closeMarkerInfo() {
+  //Set reactive
+  isMarkerOpen.value = false;
+
+  //Reset to normal camera view
+  game.resetCameraView.call(game);
+}
+
 nextTick(() => {
   //Create game instance
   game = new SpaceGame('game-canvas');
 
   //Add event listener
   game.addEventListeners();
+  document.addEventListener('openMarkerInfo', openMarkerInfo);
   document.addEventListener('openSpaceModal', openModal);
 
 });
@@ -30,6 +45,7 @@ nextTick(() => {
 onBeforeUnmount(() => {
   //Remove event listeners
   game.removeEventListeners();
+  document.removeEventListener('openMarkerInfo', openMarkerInfo);
   document.removeEventListener('openSpaceModal', openModal);
 });
 </script>
@@ -42,6 +58,16 @@ onBeforeUnmount(() => {
       <div class="w-4 h-20 m-auto rounded bg-global-blue-100 animate-loader-bar-3"></div>
     </div>
   </div>
+
+  <transition name="fade">
+    <custom-button
+        v-if="isMarkerOpen"
+        class="fixed top-4 left-4"
+        @click="closeMarkerInfo"
+    >
+      Close
+    </custom-button>
+  </transition>
 
   <modal
       :show="isModalOpen"
@@ -56,5 +82,17 @@ onBeforeUnmount(() => {
     </custom-button>
   </modal>
 
-  <canvas id="game-canvas" class="cursor-grab h-screen w-screen"></canvas>
+  <canvas id="game-canvas" class="cursor-grab h-screen w-screen focus-visible:outline-transparent"></canvas>
 </template>
+
+<style>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.5s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>

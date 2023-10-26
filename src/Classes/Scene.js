@@ -30,7 +30,10 @@ export class Scene {
         this.scene = new BABYLON.Scene(this.engine);
 
         //Create camera
-        this.camera = new BABYLON.FreeCamera('camera', new BABYLON.Vector3(0, 5, -10), this.scene);
+        this.camera = new BABYLON.ArcRotateCamera('camera', 3 * Math.PI / 2, Math.PI / 8, 1, new BABYLON.Vector3(0, 5, -10), this.scene);
+        this.camera.zoomOnFactor = 1;
+        this.camera.lowerRadiusLimit = 5;
+        this.camera.upperRadiusLimit = 20;
 
         //Set target of camera => scene origin
         this.camera.setTarget(BABYLON.Vector3.Zero());

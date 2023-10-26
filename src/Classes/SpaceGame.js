@@ -7,8 +7,10 @@ export class SpaceGame extends Scene {
     constructor(canvasId) {
         super(canvasId);
 
+        this.isInteractive = false;
+        this.particleSystem = null;
         this.earth = null;
-        this.isDragging = false;
+        this.actionManager = new BABYLON.ActionManager(this.scene);
 
         //Set up game
         this.setupGame();
@@ -22,13 +24,51 @@ export class SpaceGame extends Scene {
         this.light = new BABYLON.HemisphericLight('light', new BABYLON.Vector3(0, 1, 0), this.scene);
         this.light.intensity = 0.7;
 
+        //Set up particle system
+        this.setupParticleSystem();
+
         //Create game objects
         this.createGameObjects();
     }
 
     setupGameSettings() {
         //Config camera controls
-        this.camera.inputs.attached.mouse.detachControl();
+        // this.camera.inputs.attached.mouse.detachControl();
+    }
+
+    setupParticleSystem() {
+        //Create a particle system
+        this.particleSystem = new BABYLON.ParticleSystem('particles', 10, this.scene);
+
+        //Texture of each particle
+        this.particleSystem.particleTexture = new BABYLON.Texture('/assets/images/flare.png', this.scene);
+
+        //Colors of all particles
+        this.particleSystem.color1 = new BABYLON.Color4(0.7, 0.8, 1.0, 1.0);
+        this.particleSystem.color2 = new BABYLON.Color4(0.2, 0.5, 1.0, 1.0);
+        this.particleSystem.colorDead = new BABYLON.Color4(0, 0, 0.2, 0.0);
+
+        //Size of each particle
+        this.particleSystem.minSize = 0.01;
+        this.particleSystem.maxSize = 0.07;
+
+        //Lifetime of each particle
+        this.particleSystem.minLifeTime = 0.2;
+        this.particleSystem.maxLifeTime = 0.4;
+
+        //Emission rate
+        this.particleSystem.emitRate = 1500;
+
+        //Blend mode
+        this.particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
+
+        //Speed
+        this.particleSystem.minEmitPower = 1;
+        this.particleSystem.maxEmitPower = 3;
+        this.particleSystem.updateSpeed = 0.005;
+
+        //Direction of each particle after it has been emitted
+        this.particleSystem.direction1 = new BABYLON.Vector3(-1, -1, -1);
     }
 
     createGameObjects() {
@@ -59,7 +99,7 @@ export class SpaceGame extends Scene {
         //Handle assets success
         this.assetsManager.onFinish = tasks => {
             tasks.forEach(task => {
-                if(task.name === earthTaskName) {
+                if (task.name === earthTaskName) {
                     //Set variable
                     this.earth = new BABYLON.Mesh('earth-parent', this.scene);
 
@@ -76,6 +116,9 @@ export class SpaceGame extends Scene {
                     //Set initial scaling
                     this.earth.scaling = new BABYLON.Vector3(0, 0, 0);
 
+                    //Create markers
+                    this.createMarkers();
+
                     const timeline = gsap.timeline();
                     timeline
                         .to('#loader > div', {
@@ -90,60 +133,146 @@ export class SpaceGame extends Scene {
                             onComplete: () => {
                                 //Remove loader from dom
                                 const loader = document.getElementById('loader');
-                                if(loader) loader.remove();
+                                if (loader) loader.remove();
+
+                                //Tween rotation of the mesh
+                                gsap.from(this.earth.rotation, {
+                                    x: 0,
+                                    y: -Math.PI,
+                                    z: 0,
+                                    duration: 2,
+                                    ease: 'power2.inOut'
+                                });
 
                                 //Tween scaling of the mesh
                                 gsap.to(this.earth.scaling, {
                                     x: 1,
                                     y: 1,
                                     z: 1,
-                                    duration: 1,
+                                    duration: 2,
                                     ease: 'power2.inOut',
                                     onComplete: () => {
+                                        //Start emitting
+                                        this.particleSystem.start();
+
+                                        //Enable interactivity
+                                        this.enableInteractivity();
+
                                         //Dispatch event
                                         document.dispatchEvent(new Event('openSpaceModal'));
                                     }
                                 });
                             }
-                        }, '0.7');
+                        },'0.7');
                 }
             });
         };
     }
 
+    createMarkers() {
+        //Build mesh
+        const marker = new BABYLON.MeshBuilder.CreateBox('marker-1', {
+            width: 0.2,
+            height: 0.2,
+            depth: 0.2,
+        }, this.scene);
+
+        //Make marker pickable
+        marker.isPickable = true;
+
+        //Set a material
+        marker.material = new BABYLON.StandardMaterial('transparent-material', this.scene);
+        marker.material.alpha = 0;
+
+        //Settings
+        marker.parent = this.earth;
+        marker.position = new BABYLON.Vector3(0, 1.6, -2.1);
+
+        //Set action
+        marker.actionManager = this.actionManager;
+        marker.actionManager.registerAction(
+            new BABYLON.ExecuteCodeAction(
+                {
+                    trigger: BABYLON.ActionManager.OnPickTrigger,
+                },
+                () => {
+                    //Animate camera view to marker
+                    this.animateCameraView('zoomToMesh', this.camera.position, marker.position, false);
+
+                    //Dispatch event
+                    document.dispatchEvent(new Event('openMarkerInfo'));
+                }
+            )
+        );
+
+        //Emit from the marker
+        this.particleSystem.emitter = marker;
+
+        //Set the minimum and maximum emit box to the same point (the center of the marker)
+        this.particleSystem.minEmitBox = new BABYLON.Vector3(0, 0, 0);
+        this.particleSystem.maxEmitBox = new BABYLON.Vector3(0, 0, 0);
+    }
+
+    animateCameraView(name, currentPos, targetPos, resetCameraControl) {
+        //Smoothly zoom in on the marker
+        const ease = new BABYLON.CubicEase();
+        ease.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEINOUT);
+
+        //Disable camera control during the zoom
+        this.camera.detachControl(this.canvas);
+
+        const zoomAnimation = BABYLON.Animation.CreateAndStartAnimation(
+            name,
+            this.camera,
+            'position',
+            60,
+            180,
+            currentPos,
+            targetPos,
+            0,
+            ease,
+            () => {
+                if(!resetCameraControl) {
+                    return;
+                }
+
+                //Enable camera control
+                this.camera.attachControl(this.canvas);
+            }
+        );
+        zoomAnimation.disposeOnEnd = true;
+
+        console.log('*********start*********');
+        console.log('from:', currentPos);
+        console.log('to:', targetPos);
+        console.log('*********end*********');
+    }
+
+    resetCameraView() {
+        //Animate camera view to center
+        this.animateCameraView('resetCameraView', this.camera.position, this.earth.position, true);
+    }
+
     onPointerDown() {
-        //Set boolean
-        this.isDragging = true;
+        if (!this.isInteractive) {
+            return;
+        }
 
         //Update the cursor
         this.updateCursor();
     }
 
     onPointerUp() {
-        //Set boolean
-        this.isDragging = false;
+        if (!this.isInteractive) {
+            return;
+        }
 
         //Update the cursor
         this.updateCursor();
     }
 
-    onPointerMove(event) {
-        if (this.isDragging) {
-            // Calculate the change in pointer position
-            const deltaX = event.movementX || event.mozMovementX || 0;
-            const deltaY = event.movementY || event.mozMovementY || 0;
-
-            //Adjust sensitivity based on your preferences
-            const sensitivity = 0.005;
-
-            //Update the Earth model's rotation based on pointer movement
-            this.earth.rotation.x -= deltaY * sensitivity;
-            this.earth.rotation.y -= deltaX * sensitivity;
-        }
-    }
-
     updateCursor() {
-        if(this.canvas.classList.contains('cursor-grab')) {
+        if (this.canvas.classList.contains('cursor-grab')) {
             this.canvas.classList.remove('cursor-grab');
             this.canvas.classList.add('cursor-grabbing');
 
@@ -154,16 +283,22 @@ export class SpaceGame extends Scene {
         this.canvas.classList.add('cursor-grab');
     }
 
+    enableInteractivity() {
+        this.isInteractive = true;
+    }
+
+    disableInteractivity() {
+        this.isInteractive = true;
+    }
+
     addEventListeners() {
         window.addEventListener('resize', () => this.resize());
-        document.addEventListener('pointermove', event => this.onPointerMove.call(this, event));
         document.addEventListener('pointerup', () => this.onPointerUp.call(this));
         document.addEventListener('pointerdown', () => this.onPointerDown.call(this));
     }
 
     removeEventListeners() {
         window.removeEventListener('resize', () => this.resize());
-        document.removeEventListener('pointermove', event => this.onPointerMove.call(this, event));
         document.removeEventListener('pointerup', () => this.onPointerUp.call(this));
         document.removeEventListener('pointerdown', () => this.onPointerDown.call(this));
     }
