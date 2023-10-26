@@ -8,15 +8,13 @@ export class SpaceGame extends Scene {
         super(canvasId);
 
         this.isInteractive = false;
-        this.particleSystem = null;
+        this.particleSystems = [];
         this.earth = null;
+        this.activeMarker = null;
         this.actionManager = new BABYLON.ActionManager(this.scene);
 
         //Set up game
         this.setupGame();
-
-        //Set up game settings
-        this.setupGameSettings();
     }
 
     setupGame() {
@@ -24,51 +22,45 @@ export class SpaceGame extends Scene {
         this.light = new BABYLON.HemisphericLight('light', new BABYLON.Vector3(0, 1, 0), this.scene);
         this.light.intensity = 0.7;
 
-        //Set up particle system
-        this.setupParticleSystem();
-
         //Create game objects
         this.createGameObjects();
     }
 
-    setupGameSettings() {
-        //Config camera controls
-        // this.camera.inputs.attached.mouse.detachControl();
-    }
-
-    setupParticleSystem() {
+    createParticleSystem() {
         //Create a particle system
-        this.particleSystem = new BABYLON.ParticleSystem('particles', 10, this.scene);
+        const particleSystem = new BABYLON.ParticleSystem('particles', 10, this.scene);
 
         //Texture of each particle
-        this.particleSystem.particleTexture = new BABYLON.Texture('/assets/images/flare.png', this.scene);
+        particleSystem.particleTexture = new BABYLON.Texture('/assets/images/flare.png', this.scene);
 
         //Colors of all particles
-        this.particleSystem.color1 = new BABYLON.Color4(0.7, 0.8, 1.0, 1.0);
-        this.particleSystem.color2 = new BABYLON.Color4(0.2, 0.5, 1.0, 1.0);
-        this.particleSystem.colorDead = new BABYLON.Color4(0, 0, 0.2, 0.0);
+        particleSystem.color1 = new BABYLON.Color4(0.7, 0.8, 1.0, 1.0);
+        particleSystem.color2 = new BABYLON.Color4(0.2, 0.5, 1.0, 1.0);
+        particleSystem.colorDead = new BABYLON.Color4(0, 0, 0.2, 0.0);
 
         //Size of each particle
-        this.particleSystem.minSize = 0.01;
-        this.particleSystem.maxSize = 0.07;
+        particleSystem.minSize = 0.01;
+        particleSystem.maxSize = 0.07;
 
         //Lifetime of each particle
-        this.particleSystem.minLifeTime = 0.2;
-        this.particleSystem.maxLifeTime = 0.4;
+        particleSystem.minLifeTime = 0.2;
+        particleSystem.maxLifeTime = 0.4;
 
         //Emission rate
-        this.particleSystem.emitRate = 1500;
+        particleSystem.emitRate = 1500;
 
         //Blend mode
-        this.particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
+        particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
 
         //Speed
-        this.particleSystem.minEmitPower = 1;
-        this.particleSystem.maxEmitPower = 3;
-        this.particleSystem.updateSpeed = 0.005;
+        particleSystem.minEmitPower = 1;
+        particleSystem.maxEmitPower = 3;
+        particleSystem.updateSpeed = 0.005;
 
         //Direction of each particle after it has been emitted
-        this.particleSystem.direction1 = new BABYLON.Vector3(-1, -1, -1);
+        particleSystem.direction1 = new BABYLON.Vector3(-1, -1, -1);
+
+        return particleSystem;
     }
 
     createGameObjects() {
@@ -116,8 +108,20 @@ export class SpaceGame extends Scene {
                     //Set initial scaling
                     this.earth.scaling = new BABYLON.Vector3(0, 0, 0);
 
+                    //Define markers
+                    const markers = [{
+                        name: 'marker-1',
+                        position: {
+                            x: 0,
+                            y: 1.6,
+                            z: -2.1
+                        }
+                    }];
+
                     //Create markers
-                    this.createMarkers();
+                    markers.forEach(marker => {
+                        this.createMarker(marker);
+                    });
 
                     const timeline = gsap.timeline();
                     timeline
@@ -153,7 +157,7 @@ export class SpaceGame extends Scene {
                                     ease: 'power2.inOut',
                                     onComplete: () => {
                                         //Start emitting
-                                        this.particleSystem.start();
+                                        this.particleSystems.forEach(item => item.system.start());
 
                                         //Enable interactivity
                                         this.enableInteractivity();
@@ -163,15 +167,15 @@ export class SpaceGame extends Scene {
                                     }
                                 });
                             }
-                        },'0.7');
+                        }, '0.7');
                 }
             });
         };
     }
 
-    createMarkers() {
+    createMarker(options) {
         //Build mesh
-        const marker = new BABYLON.MeshBuilder.CreateBox('marker-1', {
+        const marker = new BABYLON.MeshBuilder.CreateBox(options.name, {
             width: 0.2,
             height: 0.2,
             depth: 0.2,
@@ -186,7 +190,7 @@ export class SpaceGame extends Scene {
 
         //Settings
         marker.parent = this.earth;
-        marker.position = new BABYLON.Vector3(0, 1.6, -2.1);
+        marker.position = new BABYLON.Vector3(options.position.x, options.position.y, options.position.z);
 
         //Set action
         marker.actionManager = this.actionManager;
@@ -196,6 +200,13 @@ export class SpaceGame extends Scene {
                     trigger: BABYLON.ActionManager.OnPickTrigger,
                 },
                 () => {
+                    //Set active marker
+                    this.activeMarker = marker;
+
+                    //Stop particle system
+                    const particleSystemObject = this.particleSystems.find(ps => ps.name === options.name);
+                    particleSystemObject.system.stop();
+
                     //Animate camera view to marker
                     this.animateCameraView('zoomToMesh', this.camera.position, marker.position, false);
 
@@ -206,11 +217,18 @@ export class SpaceGame extends Scene {
         );
 
         //Emit from the marker
-        this.particleSystem.emitter = marker;
+        const particleSystem = this.createParticleSystem();
+        particleSystem.emitter = marker;
 
         //Set the minimum and maximum emit box to the same point (the center of the marker)
-        this.particleSystem.minEmitBox = new BABYLON.Vector3(0, 0, 0);
-        this.particleSystem.maxEmitBox = new BABYLON.Vector3(0, 0, 0);
+        particleSystem.minEmitBox = new BABYLON.Vector3(0, 0, 0);
+        particleSystem.maxEmitBox = new BABYLON.Vector3(0, 0, 0);
+
+        //Add to particle systems list
+        this.particleSystems.push({
+            name: options.name,
+            system: particleSystem,
+        });
     }
 
     animateCameraView(name, currentPos, targetPos, resetCameraControl) {
@@ -232,7 +250,7 @@ export class SpaceGame extends Scene {
             0,
             ease,
             () => {
-                if(!resetCameraControl) {
+                if (!resetCameraControl) {
                     return;
                 }
 
@@ -241,14 +259,13 @@ export class SpaceGame extends Scene {
             }
         );
         zoomAnimation.disposeOnEnd = true;
-
-        console.log('*********start*********');
-        console.log('from:', currentPos);
-        console.log('to:', targetPos);
-        console.log('*********end*********');
     }
 
     resetCameraView() {
+        //Enable particle system
+        const particleSystemObject = this.particleSystems.find(ps => ps.name === this.activeMarker.name);
+        particleSystemObject.system.start();
+
         //Animate camera view to center
         this.animateCameraView('resetCameraView', this.camera.position, this.earth.position, true);
     }
