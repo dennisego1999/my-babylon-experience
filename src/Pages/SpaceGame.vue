@@ -2,7 +2,7 @@
 import {nextTick, onBeforeUnmount, ref} from "vue";
 import {SpaceGame} from "@/Classes/SpaceGame.js";
 import Modal from "@/Components/Modal.vue";
-import CustomButton from "../Components/CustomButton.vue";
+import CustomButton from "@/Components/CustomButton.vue";
 
 //Define variables
 let game;
@@ -22,14 +22,15 @@ nextTick(() => {
   game = new SpaceGame('game-canvas');
 
   //Add event listener
+  game.addEventListeners();
   document.addEventListener('openSpaceModal', openModal);
-  window.addEventListener('resize', () => game.resize());
+
 });
 
 onBeforeUnmount(() => {
   //Remove event listeners
+  game.removeEventListeners();
   document.removeEventListener('openSpaceModal', openModal);
-  window.removeEventListener('resize', () => game.resize());
 });
 </script>
 
@@ -55,5 +56,5 @@ onBeforeUnmount(() => {
     </custom-button>
   </modal>
 
-  <canvas id="game-canvas" class="h-screen w-screen"></canvas>
+  <canvas id="game-canvas" class="cursor-grab h-screen w-screen"></canvas>
 </template>

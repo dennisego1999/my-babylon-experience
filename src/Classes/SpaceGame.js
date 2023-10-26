@@ -7,10 +7,14 @@ export class SpaceGame extends Scene {
     constructor(canvasId) {
         super(canvasId);
 
-        this.model = null;
+        this.earth = null;
+        this.isDragging = false;
 
         //Set up game
         this.setupGame();
+
+        //Set up game settings
+        this.setupGameSettings();
     }
 
     setupGame() {
@@ -20,6 +24,11 @@ export class SpaceGame extends Scene {
 
         //Create game objects
         this.createGameObjects();
+    }
+
+    setupGameSettings() {
+        //Config camera controls
+        this.camera.inputs.attached.mouse.detachControl();
     }
 
     createGameObjects() {
@@ -40,61 +49,122 @@ export class SpaceGame extends Scene {
         this.assetsManager.addMeshTask(
             earthTaskName,
             '',
-            '/assets/models/',
-            'earth.glb'
+            '/assets/models/earth/',
+            'scene.gltf'
         );
 
         //Load all tasks
         this.assetsManager.load();
 
-        //Error handling
-        this.assetsManager.onTaskErrorObservable.add(task => {
-            console.error('task failed', task.errorObject.message, task.errorObject.exception);
-        });
-
         //Handle assets success
         this.assetsManager.onFinish = tasks => {
             tasks.forEach(task => {
                 if(task.name === earthTaskName) {
+                    //Set variable
+                    this.earth = new BABYLON.Mesh('earth-parent', this.scene);
+
                     task.loadedMeshes.forEach(mesh => {
-                        //Set default scaling
-                        mesh.scaling.x = 0;
-                        mesh.scaling.y = 0;
-                        mesh.scaling.z = 0;
+                        //Set scaling of meshes
+                        mesh.scaling.x = 0.0005;
+                        mesh.scaling.y = 0.0005;
+                        mesh.scaling.z = 0.0005;
 
-                        const timeline = gsap.timeline();
-                        timeline
-                            .to('#loader > div', {
-                                scale: 0,
-                                duration: 1,
-                                ease: 'expo.inOut'
-                            }, '0')
-                            .to('#loader', {
-                                yPercent: -100,
-                                duration: 1,
-                                ease: 'power2.inOut',
-                                onComplete: () => {
-                                    //Remove loader from dom
-                                    const loader = document.getElementById('loader');
-                                    if(loader) loader.remove();
-
-                                    //Tween scaling of the mesh
-                                    gsap.to(mesh.scaling, {
-                                        x: 1.8,
-                                        y: 1.8,
-                                        z: 1.8,
-                                        duration: 1,
-                                        ease: 'power2.inOut',
-                                        onComplete: () => {
-                                            //Dispatch event
-                                            document.dispatchEvent(new Event('openSpaceModal'));
-                                        }
-                                    });
-                                }
-                            }, '0.7');
+                        //Set the parent on the mesh
+                        mesh.parent = this.earth;
                     });
+
+                    //Set initial scaling
+                    this.earth.scaling = new BABYLON.Vector3(0, 0, 0);
+
+                    const timeline = gsap.timeline();
+                    timeline
+                        .to('#loader > div', {
+                            scale: 0,
+                            duration: 1,
+                            ease: 'expo.inOut'
+                        }, '0')
+                        .to('#loader', {
+                            yPercent: -100,
+                            duration: 1,
+                            ease: 'power2.inOut',
+                            onComplete: () => {
+                                //Remove loader from dom
+                                const loader = document.getElementById('loader');
+                                if(loader) loader.remove();
+
+                                //Tween scaling of the mesh
+                                gsap.to(this.earth.scaling, {
+                                    x: 1,
+                                    y: 1,
+                                    z: 1,
+                                    duration: 1,
+                                    ease: 'power2.inOut',
+                                    onComplete: () => {
+                                        //Dispatch event
+                                        document.dispatchEvent(new Event('openSpaceModal'));
+                                    }
+                                });
+                            }
+                        }, '0.7');
                 }
             });
         };
+    }
+
+    onPointerDown() {
+        //Set boolean
+        this.isDragging = true;
+
+        //Update the cursor
+        this.updateCursor();
+    }
+
+    onPointerUp() {
+        //Set boolean
+        this.isDragging = false;
+
+        //Update the cursor
+        this.updateCursor();
+    }
+
+    onPointerMove(event) {
+        if (this.isDragging) {
+            // Calculate the change in pointer position
+            const deltaX = event.movementX || event.mozMovementX || 0;
+            const deltaY = event.movementY || event.mozMovementY || 0;
+
+            //Adjust sensitivity based on your preferences
+            const sensitivity = 0.005;
+
+            //Update the Earth model's rotation based on pointer movement
+            this.earth.rotation.x -= deltaY * sensitivity;
+            this.earth.rotation.y -= deltaX * sensitivity;
+        }
+    }
+
+    updateCursor() {
+        if(this.canvas.classList.contains('cursor-grab')) {
+            this.canvas.classList.remove('cursor-grab');
+            this.canvas.classList.add('cursor-grabbing');
+
+            return;
+        }
+
+        this.canvas.classList.remove('cursor-grabbing');
+        this.canvas.classList.add('cursor-grab');
+    }
+
+    addEventListeners() {
+        window.addEventListener('resize', () => this.resize());
+        document.addEventListener('pointermove', event => this.onPointerMove.call(this, event));
+        document.addEventListener('pointerup', () => this.onPointerUp.call(this));
+        document.addEventListener('pointerdown', () => this.onPointerDown.call(this));
+    }
+
+    removeEventListeners() {
+        window.removeEventListener('resize', () => this.resize());
+        document.removeEventListener('pointermove', event => this.onPointerMove.call(this, event));
+        document.removeEventListener('pointerup', () => this.onPointerUp.call(this));
+        document.removeEventListener('pointerdown', () => this.onPointerDown.call(this));
     }
 }
