@@ -239,6 +239,7 @@ export class SpaceGame extends Scene {
         //Disable camera control during the zoom
         this.camera.detachControl(this.canvas);
 
+        //Start animation
         const zoomAnimation = BABYLON.Animation.CreateAndStartAnimation(
             name,
             this.camera,
@@ -267,7 +268,10 @@ export class SpaceGame extends Scene {
         particleSystemObject.system.start();
 
         //Animate camera view to center
-        this.animateCameraView('resetCameraView', this.camera.position, this.earth.position, true);
+        this.animateCameraView('resetCameraView', this.activeMarker.position, this.cameraStartPosition, true);
+
+        //Reset active marker variable
+        this.activeMarker = null;
     }
 
     onPointerDown() {

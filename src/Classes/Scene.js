@@ -7,6 +7,7 @@ export class Scene {
         this.scene = null;
         this.camera = null;
         this.light = null;
+        this.cameraStartPosition = new BABYLON.Vector3(0, 5, -10);
         this.assetsManager = null;
 
         //Setup scene
@@ -30,7 +31,7 @@ export class Scene {
         this.scene = new BABYLON.Scene(this.engine);
 
         //Create camera
-        this.camera = new BABYLON.ArcRotateCamera('camera', 3 * Math.PI / 2, Math.PI / 8, 1, new BABYLON.Vector3(0, 5, -10), this.scene);
+        this.camera = new BABYLON.ArcRotateCamera('camera', 3 * Math.PI / 2, Math.PI / 8, 1,  this.cameraStartPosition, this.scene);
         this.camera.zoomOnFactor = 1;
         this.camera.lowerRadiusLimit = 5;
         this.camera.upperRadiusLimit = 20;
