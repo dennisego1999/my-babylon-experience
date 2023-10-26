@@ -33,50 +33,68 @@ export class SpaceGame extends Scene {
         skyboxMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
         skybox.material = skyboxMaterial;
 
-        //Import model
-        this.model = BABYLON.SceneLoader.ImportMesh(
+        //Define asset task names
+        const earthTaskName = 'import earth model';
+
+        //Define loading tasks here
+        this.assetsManager.addMeshTask(
+            earthTaskName,
             '',
             '/assets/models/',
-            'earth.glb',
-            this.scene,
-            meshes => {
-                //Set default scaling
-                meshes.forEach(mesh => mesh.scaling = new BABYLON.Vector3(0, 0, 0));
-
-                const timeline = gsap.timeline();
-                timeline
-                    .to('#loader > div', {
-                        scale: 0,
-                        duration: 1,
-                        ease: 'expo.inOut'
-                    }, '0')
-                    .to('#loader', {
-                        yPercent: -100,
-                        duration: 1,
-                        ease: 'power2.inOut',
-                        onComplete: () => {
-                            //Remove loader from dom
-                            document.getElementById('loader').remove();
-
-                            //Tween scaling of meshes
-                            meshes.forEach(mesh => {
-                                gsap.to(mesh.scaling, {
-                                    x: 1.8,
-                                    y: 1.8,
-                                    z: 1.8,
-                                    duration: 1,
-                                    ease: 'power2.inOut',
-                                    onComplete: () => {
-                                        //Dispatch event
-                                        document.dispatchEvent(new Event('openSpaceModal'));
-                                    }
-                                });
-                            });
-                        }
-                    }, '0.7');
-            },
-            () => {},
-            error => {}
+            'earth.glb'
         );
+
+        //Load all tasks
+        this.assetsManager.load();
+
+        //Error handling
+        this.assetsManager.onTaskErrorObservable.add(task => {
+            console.error('task failed', task.errorObject.message, task.errorObject.exception);
+        });
+
+        //Handle assets success
+        this.assetsManager.onFinish = tasks => {
+            tasks.forEach(task => {
+                if(task.name === earthTaskName) {
+                    task.loadedMeshes.forEach(mesh => {
+                        //Set default scaling
+                        mesh.scaling.x = 0;
+                        mesh.scaling.y = 0;
+                        mesh.scaling.z = 0;
+
+                        const timeline = gsap.timeline();
+                        timeline
+                            .to('#loader > div', {
+                                scale: 0,
+                                duration: 1,
+                                ease: 'expo.inOut'
+                            }, '0')
+                            .to('#loader', {
+                                yPercent: -100,
+                                duration: 1,
+                                ease: 'power2.inOut',
+                                onComplete: () => {
+                                    //Remove loader from dom
+                                    const loader = document.getElementById('loader');
+                                    if(loader) loader.remove();
+
+                                    //Tween scaling of the mesh
+                                    gsap.to(mesh.scaling, {
+                                        x: 1.8,
+                                        y: 1.8,
+                                        z: 1.8,
+                                        duration: 1,
+                                        ease: 'power2.inOut',
+                                        onComplete: () => {
+                                            //Dispatch event
+                                            document.dispatchEvent(new Event('openSpaceModal'));
+                                        }
+                                    });
+                                }
+                            }, '0.7');
+                    });
+                }
+            });
+        };
     }
 }

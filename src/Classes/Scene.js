@@ -7,9 +7,13 @@ export class Scene {
         this.scene = null;
         this.camera = null;
         this.light = null;
+        this.assetsManager = null;
 
         //Setup scene
         this.setupScene();
+
+        //Setup asset manager
+        this.setupAssetManager();
 
         //Set up render loop
         this.setupRenderLoop();
@@ -33,6 +37,14 @@ export class Scene {
 
         //Attach camera to canvas
         this.camera.attachControl(this.canvas, true);
+    }
+
+    setupAssetManager() {
+        //Setup manager
+        this.assetsManager = new BABYLON.AssetsManager(this.scene);
+
+        //Disable default loading screen
+        this.assetsManager.useDefaultLoadingScreen = false;
     }
 
     setupRenderLoop() {
