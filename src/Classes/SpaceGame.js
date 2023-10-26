@@ -65,7 +65,11 @@ export class SpaceGame extends Scene {
                                     y: 1.8,
                                     z: 1.8,
                                     duration: 1,
-                                    ease: 'power2.inOut'
+                                    ease: 'power2.inOut',
+                                    onComplete: () => {
+                                        //Dispatch event
+                                        document.dispatchEvent(new Event('openSpaceModal'));
+                                    }
                                 });
                             });
                         }

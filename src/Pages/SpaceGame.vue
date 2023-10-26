@@ -1,20 +1,34 @@
 <script setup>
-import {nextTick, onBeforeUnmount} from "vue";
+import {nextTick, onBeforeUnmount, ref} from "vue";
 import {SpaceGame} from "@/Classes/SpaceGame.js";
+import Modal from "@/Components/Modal.vue";
+import CustomButton from "../Components/CustomButton.vue";
 
 //Define variables
 let game;
+const isModalOpen = ref(false);
+
+//Define functions
+function openModal() {
+  isModalOpen.value = true;
+}
+
+function closeModal() {
+  isModalOpen.value = false;
+}
 
 nextTick(() => {
   //Create game instance
   game = new SpaceGame('game-canvas');
 
   //Add event listener
+  document.addEventListener('openSpaceModal', openModal);
   window.addEventListener('resize', () => game.resize());
 });
 
 onBeforeUnmount(() => {
   //Remove event listeners
+  document.removeEventListener('openSpaceModal', openModal);
   window.removeEventListener('resize', () => game.resize());
 });
 </script>
@@ -27,6 +41,19 @@ onBeforeUnmount(() => {
       <div class="w-4 h-20 m-auto rounded bg-global-blue-100 animate-loader-bar-3"></div>
     </div>
   </div>
+
+  <modal
+      :show="isModalOpen"
+      @close="closeModal"
+  >
+    <p class="">Welcome to the experience verse</p>
+
+    <custom-button
+      @click="closeModal"
+    >
+      Close
+    </custom-button>
+  </modal>
 
   <canvas id="game-canvas" class="h-screen w-screen"></canvas>
 </template>
